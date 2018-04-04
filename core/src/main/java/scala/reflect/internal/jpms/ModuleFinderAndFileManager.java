@@ -1,4 +1,4 @@
-package example;
+package scala.reflect.internal.jpms;
 
 import javax.tools.JavaCompiler;
 import javax.tools.StandardJavaFileManager;
@@ -31,9 +31,9 @@ public abstract class ModuleFinderAndFileManager {
         return ModuleFinder.of(paths.toArray(new Path[0]));
     }
 
-    abstract protected ModuleFinder moduleFinder();
+    public abstract ModuleFinder moduleFinder();
 
-    abstract protected StandardJavaFileManager fileManager();
+    public abstract StandardJavaFileManager fileManager();
 
     private static class CtSymClassAndModulePath extends ModuleFinderAndFileManager {
         private String release;
@@ -110,7 +110,7 @@ public abstract class ModuleFinderAndFileManager {
         }
 
         @Override
-        protected StandardJavaFileManager fileManager() {
+        public StandardJavaFileManager fileManager() {
             return fileManager;
         }
 
@@ -131,7 +131,7 @@ public abstract class ModuleFinderAndFileManager {
             return ctSymFileSystem;
         }
 
-        protected ModuleFinder moduleFinder() {
+        public ModuleFinder moduleFinder() {
             return ModuleFinder.compose(
                     new FilteringSystemModuleFinder(includedSysModuleNames),
                     locationToFinder(fileManager, StandardLocation.CLASS_OUTPUT),
@@ -151,7 +151,7 @@ public abstract class ModuleFinderAndFileManager {
             optionSetter.accept(fileManager);
         }
 
-        protected ModuleFinder moduleFinder() {
+        public ModuleFinder moduleFinder() {
             return ModuleFinder.compose(
                     ModuleFinder.ofSystem(),
                     locationToFinder(fileManager, StandardLocation.CLASS_OUTPUT),
@@ -160,7 +160,7 @@ public abstract class ModuleFinderAndFileManager {
         }
 
         @Override
-        protected StandardJavaFileManager fileManager() {
+        public StandardJavaFileManager fileManager() {
             return fileManager;
         }
 

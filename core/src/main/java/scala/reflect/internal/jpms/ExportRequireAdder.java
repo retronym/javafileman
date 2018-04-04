@@ -1,4 +1,4 @@
-package example;
+package scala.reflect.internal.jpms;
 
 import java.lang.module.ModuleDescriptor;
 import java.util.HashSet;

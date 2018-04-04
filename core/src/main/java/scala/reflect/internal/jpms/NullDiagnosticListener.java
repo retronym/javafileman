@@ -1,4 +1,4 @@
-package example;
+package scala.reflect.internal.jpms;
 
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticListener;

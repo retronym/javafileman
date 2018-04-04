@@ -1,4 +1,9 @@
-package example;
+package scala.reflect.internal.jpms.test;
+
+import scala.reflect.internal.jpms.ExportRequireAdder;
+import scala.reflect.internal.jpms.ExportRequireAddingModuleFinder;
+import scala.reflect.internal.jpms.FixedModuleFinder;
+import scala.reflect.internal.jpms.ModuleFinderAndFileManager;
 
 import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;

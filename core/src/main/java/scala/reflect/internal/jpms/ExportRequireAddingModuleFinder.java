@@ -1,7 +1,6 @@
-package example;
+package scala.reflect.internal.jpms;
 
 import java.io.IOException;
-import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReader;
 import java.lang.module.ModuleReference;

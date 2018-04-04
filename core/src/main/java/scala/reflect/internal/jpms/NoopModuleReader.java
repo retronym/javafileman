@@ -1,4 +1,4 @@
-package example;
+package scala.reflect.internal.jpms;
 
 import java.io.IOException;
 import java.io.InputStream;

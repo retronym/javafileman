@@ -1,15 +1,13 @@
 package scala.reflect.internal.jpms;
 
 import java.lang.module.ModuleDescriptor;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 
-public interface ExportRequireAdder {
-    Iterable<ModuleDescriptor.Exports> addExports(String moduleName);
-    Iterable<String> addReads(String moduleName);
+public class ExportRequireAdder {
+    public Iterable<ModuleDescriptor.Exports> addExports(String moduleName) { return Collections.emptyList(); };
+    public  Iterable<String> addReads(String moduleName) { return Collections.emptyList(); };;
 
-    default ModuleDescriptor patch(ModuleDescriptor d) {
+    public ModuleDescriptor patch(ModuleDescriptor d) {
         ModuleDescriptor.Builder builder = ModuleDescriptor.newModule(d.name(), d.modifiers());
 
         addPatchedExports(d, builder);
@@ -22,13 +20,18 @@ public interface ExportRequireAdder {
         return builder.build();
     }
 
-    default void addPatchedRequires(ModuleDescriptor d, ModuleDescriptor.Builder builder) {
+    protected Iterable<ModuleDescriptor.Exports> mkExport(String source, String target) {
+        return ModuleDescriptor.newModule("dummy").exports(Set.of(), source, Collections.singleton(target)).build().exports();
+    }
+
+
+    private void addPatchedRequires(ModuleDescriptor d, ModuleDescriptor.Builder builder) {
         Map<String, ModuleDescriptor.Requires> newRequires = new LinkedHashMap<>();
         d.requires().forEach(x -> {newRequires.put(x.name(), x); builder.requires(x);});
         addReads(d.name()).forEach(x -> {if (!newRequires.containsKey(x)) builder.requires(x);});
     }
 
-    default void addPatchedExports(ModuleDescriptor d, ModuleDescriptor.Builder builder) {
+    private void addPatchedExports(ModuleDescriptor d, ModuleDescriptor.Builder builder) {
         Map<String, ModuleDescriptor.Exports> newExportsMap = new LinkedHashMap<>();
         for (ModuleDescriptor.Exports x : d.exports()) {
             newExportsMap.put(x.source(), x);

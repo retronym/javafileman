@@ -7,6 +7,8 @@ inThisBuild(List(
   incOptions := incOptions.value.withEnabled(false)
 ))
 
+crossPaths in ThisBuild := false
+
 incOptions in Global := (incOptions in Global).value.withEnabled(false)
 
 lazy val core = project

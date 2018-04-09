@@ -13,15 +13,19 @@ incOptions in Global := (incOptions in Global).value.withEnabled(false)
 
 lazy val core = project
 
-lazy val a = project.in(file("acme.a"))
-
-lazy val b = project.in(file("acme.b")).dependsOn(a)
-
-lazy val c = project.in(file("acme.c")).dependsOn(b).settings(
-  javacOptions in Test ++= List("--patch-module", "acme.c=" + (classDirectory in Compile).value.toString)
+lazy val a = project.in(file("acme.a")).enablePlugins(JpmsPlugin).settings(
+  jpmsModuleName := "acme.a"
 )
 
-lazy val tests = project.dependsOn(c, core).settings(
+lazy val b = project.in(file("acme.b")).enablePlugins(JpmsPlugin).dependsOn(a).settings(
+  jpmsModuleName := "acme.b"
+)
+
+lazy val c = project.in(file("acme.c")).enablePlugins(JpmsPlugin).dependsOn(b).settings(
+  jpmsModuleName := "acme.c"
+)
+
+lazy val tests = project.dependsOn(a, b, c, core).settings(
   libraryDependencies += "junit" % "junit" % "4.12" % Test
 )
 

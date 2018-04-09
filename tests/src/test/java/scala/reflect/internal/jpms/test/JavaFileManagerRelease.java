@@ -1,5 +1,6 @@
 package scala.reflect.internal.jpms.test;
 
+import org.junit.Assert;
 import org.junit.Test;
 import scala.reflect.internal.jpms.ExportRequireAdder;
 import scala.reflect.internal.jpms.ExportRequireAddingModuleFinder;
@@ -86,6 +87,30 @@ public class JavaFileManagerRelease {
             x.handleOption("--module-path", List.of(pathString(List.of(classesDir("acme.a"), classesDir("acme.b"), classesDir("acme.c")))).iterator());
         };
         ModuleFinderAndFileManager result = resolveModules(release, adder, optionAdder, "acme.c", List.of());
+
+    }
+
+    @Test
+    public void testAcmeCTestPatch() throws IOException {
+        // sbt:javafileman> show c/test:javacOptions
+        // [info] * --module-path
+        // [info] * /Users/jz/code/javafileman/acme.c/target/classes:/Users/jz/code/javafileman/acme.b/target/classes:/Users/jz/code/javafileman/acme.a/target/classes
+        // [info] * --patch-module
+        // [info] * acme.c=/Users/jz/code/javafileman/acme.c/src/test/java/acme.c
+        // [success] Total time: 0 s, completed 9 Apr. 2018, 10:06:19 pm
+        Optional<String> release = RELEASE_CURRENT;
+        ExportRequireAdder adder = new ExportRequireAdder();
+        Consumer<StandardJavaFileManager> optionAdder = x -> {
+            x.handleOption("--module-path", List.of(pathString(List.of(classesDir("acme.a"), classesDir("acme.b"), classesDir("acme.c")))).iterator());
+            x.handleOption("--patch-module", List.of("acme.c=" + testSourcesDir("acme.c")).iterator());
+        };
+        ModuleFinderAndFileManager result = resolveModules(release, adder, optionAdder, "acme.c", List.of());
+        StandardJavaFileManager fileManager = result.fileManager();
+        Iterable<? extends JavaFileObject> jfos = fileManager.getJavaFileObjectsFromPaths(List.of(testSourcesDir("acme.c").resolve("acme").resolve("c").resolve("AcmeCTest.java")));
+        JavaFileObject sourceFile = jfos.iterator().next();
+        JavaFileManager.Location location = fileManager.getLocationForModule(StandardLocation.PATCH_MODULE_PATH, sourceFile);
+        String moduleName = fileManager.inferModuleName(location);
+        Assert.assertEquals("acme.c", moduleName);
     }
 
 
@@ -102,6 +127,9 @@ public class JavaFileManagerRelease {
 
     private static Path classesDir(String project) {
         return projectRoot().resolve(project).resolve("target").resolve("classes");
+    }
+    private static Path testSourcesDir(String project) {
+        return projectRoot().resolve(project).resolve("src").resolve("test").resolve("java").resolve(project);
     }
 
     private static ModuleFinderAndFileManager resolveModules(Optional<String> release1, ExportRequireAdder adder, Consumer<StandardJavaFileManager> optionAdder, String rootModule, List<ModuleDescriptor> sourceModules) throws IOException {

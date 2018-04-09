@@ -1,5 +1,6 @@
 package scala.reflect.internal.jpms.test;
 
+import org.junit.Test;
 import scala.reflect.internal.jpms.ExportRequireAdder;
 import scala.reflect.internal.jpms.ExportRequireAddingModuleFinder;
 import scala.reflect.internal.jpms.FixedModuleFinder;
@@ -9,6 +10,7 @@ import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
+import java.io.File;
 import java.io.IOException;
 import java.lang.module.Configuration;
 import java.lang.module.ModuleDescriptor;
@@ -28,16 +30,11 @@ public class JavaFileManagerRelease {
     // Create a dummy module name to accumulate `--add-exports=some.module/some.module.internal.package=ALL-UNNAMED
     private static final String UNNAMED_MODULE_NAME = "_UNNAMED_";
     private static final Path ROOT = Paths.get(".").toAbsolutePath();
+    private static final Optional<String> RELEASE_9 = Optional.of("9");
+    private static final Optional<String> RELEASE_CURRENT = Optional.empty();
 
-    public static void main(String... args) throws IOException {
-        for (Optional<String> release : releases) {
-            test1(release);
-        }
-    }
 
-    private static List<Optional<String>> releases = List.of(Optional.empty(), Optional.of("9"));
-
-    public static void test1(Optional<String> release) throws IOException {
+    public void test1(Optional<String> release) throws IOException {
         ExportRequireAdder adder = new ExportRequireAdder() {
             @Override
             public Iterable<ModuleDescriptor.Exports> addExports(String moduleName) {
@@ -67,23 +64,49 @@ public class JavaFileManagerRelease {
             }
         };
 
-        ModuleFinderAndFileManager result = resolveModules(release, adder, (x -> x.handleOption("--classpath", List.of("/Users/jz/scala/2.12/lib/scala-library.jar").iterator())));
+        List<ModuleDescriptor> sourceModules = sourceModules(adder);
+        ModuleFinderAndFileManager result = resolveModules(release, adder, (x -> x.handleOption("--classpath", List.of("/Users/jz/scala/2.12/lib/scala-library.jar").iterator())), "acme.mod2", sourceModules);
     }
 
-    public static void test2(Optional<String> release) throws IOException {
+    @Test
+    public void test1_9() throws IOException {
+        test1(RELEASE_9);
+    }
+
+    @Test
+    public void test1_current() throws IOException {
+        test1(RELEASE_CURRENT);
+    }
+
+    @Test
+    public void test2() throws IOException {
+        Optional<String> release = RELEASE_CURRENT;
         ExportRequireAdder adder = new ExportRequireAdder();
         Consumer<StandardJavaFileManager> optionAdder = x -> {
-//            x.handleOption("--module-path", List.of(ROOT.resolve("a/")).iterator());
+            x.handleOption("--module-path", List.of(pathString(List.of(classesDir("acme.a"), classesDir("acme.b"), classesDir("acme.c")))).iterator());
         };
-        ModuleFinderAndFileManager result = resolveModules(release, adder, optionAdder);
+        ModuleFinderAndFileManager result = resolveModules(release, adder, optionAdder, "acme.c", List.of());
     }
 
-    private static ModuleFinderAndFileManager resolveModules(Optional<String> release1, ExportRequireAdder adder, Consumer<StandardJavaFileManager> optionAdder) throws IOException {
+
+    private static Path projectRoot() {
+        Path parent = Paths.get(".").toAbsolutePath();
+        while (!Files.exists(parent.resolve("build.sbt"))) parent = parent.getParent();
+        return parent;
+    }
+
+    private static String pathString(Collection<Path> paths) {
+        return paths.stream().map(Objects::toString).collect(Collectors.joining(File.pathSeparator));
+    }
+
+
+    private static Path classesDir(String project) {
+        return projectRoot().resolve(project).resolve("target").resolve("classes");
+    }
+
+    private static ModuleFinderAndFileManager resolveModules(Optional<String> release1, ExportRequireAdder adder, Consumer<StandardJavaFileManager> optionAdder, String rootModule, List<ModuleDescriptor> sourceModules) throws IOException {
         System.out.println("--release: " + release1);
         ModuleFinderAndFileManager finderAndFileManager = ModuleFinderAndFileManager.get(release1, optionAdder);
-
-        List<ModuleDescriptor> sourceModules = sourceModules(adder);
-
 
         ArrayList<ModuleDescriptor> sourceAndUnnamed = new ArrayList<>(sourceModules);
         sourceAndUnnamed.add(ModuleDescriptor.newModule(UNNAMED_MODULE_NAME).requires("java.base").build());
@@ -93,14 +116,15 @@ public class JavaFileManagerRelease {
         // Resolve the module graph.
         // `fromSourceFinder` is passed as the `before` finder to take precendence over, rather than clash with, a module-info.class in the
         // output directory.
-        Configuration configuration = Configuration.empty().resolve(fromSourceFinder, new ExportRequireAddingModuleFinder(finderAndFileManager.moduleFinder(), adder), List.of("acme.mod2"));
+        ExportRequireAddingModuleFinder afterFinder = new ExportRequireAddingModuleFinder(finderAndFileManager.moduleFinder(), adder);
+        Configuration configuration = Configuration.empty().resolve(fromSourceFinder, afterFinder, List.of(rootModule));
 
         String resultString = configuration.modules().stream().map(Objects::toString).collect(Collectors.joining(", ", "modules: ", ""));
         System.out.println(resultString);
-        ResolvedModule root = configuration.findModule("acme.mod2").get();
+        ResolvedModule root = configuration.findModule(rootModule).get();
 
         // Interrogate the resolved configuration to find out what packages are read by && exported to some module.
-        List<ModuleDescriptor.Exports> exportedPackagesOfReads = root.reads().stream().flatMap(x -> x.reference().descriptor().exports().stream().filter(y -> !y.isQualified() || y.targets().contains("acme.mod2"))).collect(Collectors.toList());
+        List<ModuleDescriptor.Exports> exportedPackagesOfReads = root.reads().stream().flatMap(x -> x.reference().descriptor().exports().stream().filter(y -> !y.isQualified() || y.targets().contains(rootModule))).collect(Collectors.toList());
         System.out.println(exportedPackagesOfReads.stream().map(Objects::toString).collect(Collectors.joining(", ", "exported to root module: ", "")));
 
         StandardJavaFileManager fileManager = finderAndFileManager.fileManager();
